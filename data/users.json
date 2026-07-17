@@ -1,0 +1,14 @@
+[
+    {
+      "id": "U001",
+      "name": "Priya Nair",
+      "role": "engineer",
+      "context": "Software engineer on the core team. Can ask why code was built/changed and see PR Guardian activity on their own PRs."
+    },
+    {
+      "id": "U002",
+      "name": "Daniel Osei",
+      "role": "manager",
+      "context": "Engineering manager. Has all engineer access, plus the knowledge-health dashboard showing at-risk files/teams."
+    }
+  ]

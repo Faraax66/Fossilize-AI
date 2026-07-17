@@ -1,10 +1,14 @@
 import anthropic
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Initialize the Anthropic client (reads API key and base URL from .env automatically)
-client = anthropic.Anthropic()
+client = anthropic.Anthropic(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    base_url="https://aibootcamp-claude.services.ai.azure.com/anthropic"
+) 
 
 # Send a message to Claude
 message = client.messages.create(

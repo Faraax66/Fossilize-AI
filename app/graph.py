@@ -4,15 +4,22 @@ from typing import TypedDict, Optional, List
 from langgraph.graph import StateGraph, END
 import anthropic
 
-from intent_classifier import classify_intent
+from app.intent_classifier import classify_intent
 import chromadb
 from sentence_transformers import SentenceTransformer
+from app import config
 
-client = anthropic.Anthropic()
+import os
+client = anthropic.Anthropic(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    base_url="https://aibootcamp-claude.services.ai.azure.com/anthropic"
+)
 
 # --- State definition ---
 class AgentState(TypedDict):
     user_message: str
+    history: Optional[List[dict]]
+    role: Optional[str]
     intent: Optional[str]
     reason: Optional[str]
     retrieved_chunks: Optional[List[dict]]
@@ -20,14 +27,15 @@ class AgentState(TypedDict):
 
 
 # --- Shared resources (loaded once) ---
-embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-chroma_client = chromadb.PersistentClient(path="data/chroma_db")
-collection = chroma_client.get_collection("fossilize_knowledge")
+embed_model = SentenceTransformer(config.EMBEDDING_MODEL)
+chroma_client = chromadb.PersistentClient(path=config.CHROMA_DB_PATH)
+collection = chroma_client.get_collection(config.CHROMA_COLLECTION_NAME)
 
 
 # --- Nodes ---
 def classify_intent_node(state: AgentState) -> dict:
-    result = classify_intent(state["user_message"])
+    trimmed_history = trim_history(state.get("history"))
+    result = classify_intent(state["user_message"], history=trimmed_history)
     return {"intent": result["intent"], "reason": result["reason"]}
 
 
@@ -78,6 +86,18 @@ Context:
 
 Question: {state['user_message']}
 
+Think step by step before answering:
+1. Identify which sources in the context actually address the question.
+2. Note any gaps — parts the context does NOT explain.
+3. Only then, write the final answer.
+
+Example:
+Question: "Why does the linter skip generated files?"
+Reasoning: PR #12 excludes files matching *_generated.py from linting because CI was failing on auto-generated code with false positives.
+Answer: "According to PR #12, generated files are skipped because they triggered false-positive lint failures in CI."
+
+Now answer the actual question below.
+
 Instructions:
 - Answer using only the information in the context above.
 - If the context doesn't actually answer the question, say so honestly instead of guessing.
@@ -94,15 +114,27 @@ Instructions:
     answer = response.content[0].text
     return {"final_answer": answer}
 
+MAX_HISTORY_MESSAGES = 6  # sliding window
+
+def trim_history(history):
+    if not history:
+        return history
+    return history[-MAX_HISTORY_MESSAGES:]
+
 # --- Conditional routing function ---
 def route_after_classify(state: AgentState) -> str:
-    if state["intent"] == "rag_query":
+    if state["intent"] == "knowledge_query":
         return "rag_retrieval"
     elif state["intent"] == "dashboard_query":
+        if state.get("role") != "manager":
+            return "access_denied"
         return "dashboard"
     else:
         return "clarify"
     
+def access_denied_node(state: AgentState) -> dict:
+    return {"final_answer": "This view is available to managers — try asking a knowledge question instead, like why something was built or who worked on it."}
+   
     # --- New routing after retrieval ---
 RELEVANCE_THRESHOLD = 0.35  # tune this based on real testing
 
@@ -124,12 +156,20 @@ graph.add_node("degrade", graceful_degrade_node)
 
 graph.set_entry_point("classify_intent")
 
+graph.add_node("access_denied", access_denied_node)
+
 graph.add_conditional_edges(
     "classify_intent",
     route_after_classify,
-    {"rag_retrieval": "rag_retrieval", "dashboard": "dashboard", "clarify": "clarify"}
+    {
+        "rag_retrieval": "rag_retrieval",
+        "dashboard": "dashboard",
+        "clarify": "clarify",
+        "access_denied": "access_denied"
+    }
 )
 
+graph.add_edge("access_denied", END)
 graph.add_conditional_edges(
     "rag_retrieval",
     route_after_retrieval,

@@ -1,11 +1,14 @@
 # intent_classifier.py
 
 import anthropic
-from dotenv import load_dotenv
+from app import config
 
-load_dotenv()
+import os
+client = anthropic.Anthropic(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    base_url="https://aibootcamp-claude.services.ai.azure.com/anthropic"
+)
 
-client = anthropic.Anthropic()
 
 CLASSIFY_TOOL = {
     "name": "classify_intent",
@@ -15,12 +18,13 @@ CLASSIFY_TOOL = {
         "properties": {
             "intent": {
                 "type": "string",
-                "enum": ["rag_query", "dashboard_query", "ambiguous"],
+                "enum": ["knowledge_query", "dashboard_query", "ambiguous"],
                 "description": (
-                    "'rag_query' = user is asking why something was built/changed, or wants historical "
-                    "context from commits/PRs. 'dashboard_query' = user wants to see at-risk knowledge, "
-                    "documentation gaps, or team/file risk overview. 'ambiguous' = intent is unclear or "
-                    "too vague to route confidently."
+                    "'knowledge_query' = user wants historical/contextual information grounded in commit, PR, "
+                    "or discussion history — e.g. why something was built, who wrote or worked on something, "
+                    "what issues existed, what decisions were made, or how something evolved over time. "
+                    "'dashboard_query' = user wants to see at-risk knowledge, documentation gaps, or team/file "
+                    "risk overview. 'ambiguous' = intent is unclear or too vague to route confidently."
                 )
             },
             "reason": {
@@ -61,7 +65,6 @@ def classify_intent(user_message, history=None):
     for block in response.content:
         if block.type == "tool_use" and block.name == "classify_intent":
             return block.input  # {"intent": ..., "reason": ...}
-
     return None  # shouldn't happen since tool_choice forces the call
 
 
