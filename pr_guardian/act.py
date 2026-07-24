@@ -61,11 +61,15 @@ def confirmation_gate(pr_number, verdict, repo=FORK_REPO):
         return {"action": "silent"}
 
     if verdict["confidence"] == "high":
-        result = post_pr_comment(pr_number, verdict["comment_draft"], repo)
-        log_action(pr_number, "auto_posted", f"comment id {result.get('id')}")
-        return {"action": "posted", "comment_url": result.get("html_url")}
+        try:
+            result = post_pr_comment(pr_number, verdict["comment_draft"], repo)
+            log_action(pr_number, "auto_posted", f"comment id {result.get('id')}")
+            return {"action": "posted", "comment_url": result.get("html_url")}
+        except requests.exceptions.RequestException as e:
+            log_action(pr_number, "post_failed", str(e))
+            return {"action": "failed", "reason": str(e)}
 
-    else:  # medium or low confidence
+    else:
         log_action(pr_number, "queued_for_review", f"confidence={verdict['confidence']}")
         return {
             "action": "queued_for_review",

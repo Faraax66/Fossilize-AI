@@ -16,6 +16,10 @@ CLASSIFY_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
+            "referenced_pr_number": {
+                "type": ["integer", "null"],
+                "description": "If the user explicitly references a specific PR by number (e.g. 'PR #5203', 'pull request 5203'), extract that number. Otherwise null."
+            },  
             "intent": {
                 "type": "string",
                 "enum": ["knowledge_query", "dashboard_query", "ambiguous"],
@@ -23,9 +27,12 @@ CLASSIFY_TOOL = {
                     "'knowledge_query' = user wants historical/contextual information grounded in commit, PR, "
                     "or discussion history — e.g. why something was built, who wrote or worked on something, "
                     "what issues existed, what decisions were made, or how something evolved over time. "
-                    "'dashboard_query' = user wants to see at-risk knowledge, documentation gaps, or team/file "
-                    "risk overview. 'ambiguous' = intent is unclear or too vague to route confidently."
-                )
+                    "'dashboard_query' = user EXPLICITLY asks to see the knowledge-risk dashboard, at-risk files, "
+                    "or documentation gaps — not a vague mention of an undefined area like 'the service layer' "
+                    "that doesn't clearly map to a real, known part of the codebase. "
+                    "'ambiguous' = intent is unclear, too vague to route confidently, or references a concept "
+                    "not clearly tied to anything specific."
+                ),
             },
             "reason": {
                 "type": "string",

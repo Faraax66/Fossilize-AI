@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fossilize AI</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0;
+    background: #0f1115;
+    color: #e5e7eb;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #2a2d34;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+    color: #f4a259;
+  }
+  header .tagline {
+    font-size: 12px;
+    color: #8b8f98;
+    margin-top: 2px;
+  }
+  #user-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #user-select {
+    background: #1a1d24;
+    color: #e5e7eb;
+    border: 1px solid #2a2d34;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  #chat-window {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    line-height: 1.5;
+    font-size: 14px;
+    white-space: pre-wrap;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #f4a259;
+    color: #14161a;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: #1a1d24;
+    border: 1px solid #2a2d34;
+  }
+  .msg .intent-tag {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8b8f98;
+    margin-bottom: 4px;
+  }
+  #input-area {
+    border-top: 1px solid #2a2d34;
+    padding: 16px 24px;
+    display: flex;
+    gap: 10px;
+  }
+  #message-input {
+    flex: 1;
+    background: #1a1d24;
+    border: 1px solid #2a2d34;
+    color: #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  #send-btn {
+    background: #f4a259;
+    color: #14161a;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .loading {
+    align-self: flex-start;
+    color: #8b8f98;
+    font-size: 13px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Fossilize AI</h1>
+    <div class="tagline">Before your team's knowledge goes extinct.</div>
+  </div>
+  <div id="user-switcher">
+    <label for="user-select" style="font-size:12px; color:#8b8f98;">Acting as:</label>
+    <select id="user-select"></select>
+  </div>
+</header>
+
+<div id="chat-window"></div>
+
+<div id="input-area">
+  <input id="message-input" type="text" placeholder="Ask why something was built, who worked on it, or request the knowledge dashboard..." />
+  <button id="send-btn">Send</button>
+</div>
+
+<script>
+  const chatWindow = document.getElementById("chat-window");
+  const userSelect = document.getElementById("user-select");
+  const messageInput = document.getElementById("message-input");
+  const sendBtn = document.getElementById("send-btn");
+
+  let history = [];
+
+  async function loadUsers() {
+    try {
+      const res = await fetch("/api/users");
+      const users = await res.json();
+      userSelect.innerHTML = users
+        .map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`)
+        .join("");
+    } catch (err) {
+      userSelect.innerHTML = `<option value="">Failed to load users</option>`;
+      console.error(err);
+    }
+  }
+
+  function appendMessage(role, text, intent) {
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+    if (intent && role === "assistant") {
+      const tag = document.createElement("span");
+      tag.className = "intent-tag";
+      tag.textContent = intent.replace("_", " ");
+      div.appendChild(tag);
+    }
+    const textNode = document.createElement("span");
+    textNode.textContent = text;
+    div.appendChild(textNode);
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function appendLoading() {
+    const div = document.createElement("div");
+    div.className = "loading";
+    div.id = "loading-indicator";
+    div.textContent = "Fossilize AI is thinking...";
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function removeLoading() {
+    const el = document.getElementById("loading-indicator");
+    if (el) el.remove();
+  }
+
+  async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    const userId = userSelect.value;
+
+    appendMessage("user", message);
+    history.push({ role: "user", content: message });
+    messageInput.value = "";
+    sendBtn.disabled = true;
+    appendLoading();
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": userId
+        },
+        body: JSON.stringify({ message, history })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
+      }
+
+      const data = await res.json();
+      removeLoading();
+      appendMessage("assistant", data.answer, data.intent);
+      history.push({ role: "assistant", content: data.answer });
+    } catch (err) {
+      removeLoading();
+      appendMessage("assistant", "Something went wrong reaching the agent. Check the server logs.");
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  messageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
+
+  loadUsers();
+</script>
+
+</body>
+</html>

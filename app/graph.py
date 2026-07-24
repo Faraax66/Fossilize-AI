@@ -7,6 +7,8 @@ import anthropic
 from app.intent_classifier import classify_intent
 import chromadb
 from sentence_transformers import SentenceTransformer
+from app.dashboard import get_at_risk_files 
+
 from app import config
 
 import os
@@ -22,6 +24,7 @@ class AgentState(TypedDict):
     role: Optional[str]
     intent: Optional[str]
     reason: Optional[str]
+    referenced_pr_number: Optional[int]
     retrieved_chunks: Optional[List[dict]]
     final_answer: Optional[str]
 
@@ -33,15 +36,49 @@ collection = chroma_client.get_collection(config.CHROMA_COLLECTION_NAME)
 
 
 # --- Nodes ---
+def dashboard_node(state: AgentState) -> dict:
+    at_risk = get_at_risk_files(top_n=5)
+
+    if not at_risk:
+        return {"final_answer": "No significant knowledge-risk areas found in the current indexed history."}
+
+    lines = ["Top at-risk files, based on currently indexed commit/PR history (not real-time):\n"]
+    for i, f in enumerate(at_risk, 1):
+        lines.append(
+            f"{i}. `{f['filename']}` — risk={f['risk_score']:.2f} "
+            f"({f['pr_count']} PRs, {f['unique_authors']} contributors, "
+            f"avg {f['avg_comments_per_pr']} comments/PR)"
+        )
+
+    return {"final_answer": "\n".join(lines)}
+
 def classify_intent_node(state: AgentState) -> dict:
     trimmed_history = trim_history(state.get("history"))
     result = classify_intent(state["user_message"], history=trimmed_history)
-    return {"intent": result["intent"], "reason": result["reason"]}
-
+    return {
+        "intent": result["intent"],
+        "reason": result["reason"],
+        "referenced_pr_number": result.get("referenced_pr_number")
+    }
 
 def rag_retrieval_node(state: AgentState) -> dict:
+    pr_number = state.get("referenced_pr_number")
+
+    if pr_number:
+        raw = collection.get(
+            where={"pr_number": pr_number},
+            include=["documents", "metadatas"]
+        )
+        chunks = [
+            {"text": raw["documents"][i], "metadata": raw["metadatas"][i], "score": 1.0}
+            for i in range(len(raw["ids"]))
+        ]
+        if chunks:
+            return {"retrieved_chunks": chunks}
+        # fall through to semantic search if exact PR not found
+
     query_embedding = embed_model.encode([state["user_message"]]).tolist()
-    results = collection.query(query_embeddings=query_embedding, n_results=5)
+    results = collection.query(query_embeddings=query_embedding, n_results=8)
 
     chunks = []
     for i in range(len(results["ids"][0])):
@@ -54,12 +91,6 @@ def rag_retrieval_node(state: AgentState) -> dict:
 
 def clarify_node(state: AgentState) -> dict:
     return {"final_answer": state["reason"]}
-
-
-# --- New node: dashboard (stub for now) ---
-def dashboard_node(state: AgentState) -> dict:
-    return {"final_answer": "[Dashboard view not yet built — this will show at-risk knowledge areas.]"}
-
 
 # --- New node: graceful degrade ---
 def graceful_degrade_node(state: AgentState) -> dict:
@@ -133,8 +164,11 @@ def route_after_classify(state: AgentState) -> str:
         return "clarify"
     
 def access_denied_node(state: AgentState) -> dict:
-    return {"final_answer": "This view is available to managers — try asking a knowledge question instead, like why something was built or who worked on it."}
-   
+    return {"final_answer": (
+        "Access denied: the knowledge-risk dashboard requires the manager role. "
+        "Your authenticated role is determined by your logged-in account, not by what you state in your message — "
+        "so this can't be bypassed by claiming a different role. Try asking a knowledge question instead."
+    )}
     # --- New routing after retrieval ---
 RELEVANCE_THRESHOLD = 0.35  # tune this based on real testing
 

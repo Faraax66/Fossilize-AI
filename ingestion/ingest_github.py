@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
-
+EXCLUDED_AUTHORS = {"Faraax66"}  # accidental self-authored test PRs on the real repo
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO = "psf/black"
 HEADERS = {
@@ -92,6 +92,8 @@ def fetch_pull_requests():
         created_at = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
         if created_at < cutoff:
             continue  # stop including PRs older than our window
+        if pr["user"]["login"] in EXCLUDED_AUTHORS:
+            continue
         prs.append({
             "number": pr["number"],
             "title": pr["title"],
@@ -118,6 +120,11 @@ def fetch_pr_comments(pr_number):
         })
     return comments
 
+def fetch_pr_files_for_pr(pr_number):
+    url = f"{BASE_URL}/pulls/{pr_number}/files"
+    files_raw = paginated_get(url)
+    return [{"filename": f["filename"], "status": f["status"]} for f in files_raw]
+
 
 def main():
     os.makedirs("data/raw", exist_ok=True)
@@ -131,6 +138,19 @@ def main():
     with open("data/raw/pull_requests.json", "w", encoding="utf-8") as f:
         json.dump(prs, f, indent=2)
     print(f"Saved {len(prs)} pull requests.")
+
+    print("Fetching file-level data per PR...")
+    for i, pr in enumerate(prs):
+        pr["files_touched"] = fetch_pr_files_for_pr(pr["number"])
+        time.sleep(0.2)
+
+        if (i + 1) % 20 == 0:
+            with open("data/raw/pull_requests.json", "w", encoding="utf-8") as f:
+                json.dump(prs, f, indent=2)
+            print(f"  Checkpoint: {i+1}/{len(prs)} PRs processed")
+
+    with open("data/raw/pull_requests.json", "w", encoding="utf-8") as f:
+        json.dump(prs, f, indent=2)
 
     all_comments = []
     for i, pr in enumerate(prs):

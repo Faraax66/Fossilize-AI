@@ -100,6 +100,7 @@ def chunk_prs(prs, comments):
                     "created_at": pr["created_at"],
                     "part": i + 1,
                     "total_parts": len(parts),
+                    "files_touched": ", ".join(f["filename"] for f in pr.get("files_touched", [])) or "unknown",
                 }
             })
 
