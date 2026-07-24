@@ -90,6 +90,8 @@ eval/
   run_eval.py               Original 10-scenario test suite
   run_llm_judge.py          Automated LLM-as-judge scoring pipeline
   guardrail_demo.py          Guardrail pass/block test cases
+tests/
+  claude_test.py, cleanup_test_chunk.py, test_injection.py, test_injection_direct.py
 benchmark.py               Intent-routing regression check
 ```
 
