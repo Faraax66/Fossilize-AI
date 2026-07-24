@@ -71,7 +71,8 @@ app/
   intent_classifier.py Tool-calling intent classification
   guardrails.py         Input/output safety checks
   config.py             Environment & path config
-  index.html             Chat UI
+  dashboard.py          Knowledge-risk scoring logic
+  index.html            Chat UI
 ingestion/
   ingest_github.py      Pulls commits/PRs/comments from GitHub
   chunk_data.py          Chunks PR/comment data per-PR, bot-filtered
@@ -89,7 +90,6 @@ eval/
   run_eval.py               Original 10-scenario test suite
   run_llm_judge.py          Automated LLM-as-judge scoring pipeline
   guardrail_demo.py          Guardrail pass/block test cases
-dashboard.py              Knowledge-risk scoring logic
 benchmark.py               Intent-routing regression check
 ```
 
