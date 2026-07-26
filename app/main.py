@@ -16,6 +16,8 @@ import json
 
 from fastapi.responses import FileResponse
 from fastapi import BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+
 from pathlib import Path
 
 _USERS = {
@@ -23,6 +25,8 @@ _USERS = {
 }
 
 app = FastAPI(title="Fossilize AI")
+
+app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
 
 def process_pr_guardian(pr_number: int):
     pr_context = get_pr_context(pr_number)
