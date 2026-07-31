@@ -66,33 +66,46 @@ FastAPI backend ──► LangGraph orchestration
 
 ```
 app/
-  main.py              FastAPI app, /api/chat and /webhook/github routes
-  graph.py             LangGraph state machine (chat flow)
-  intent_classifier.py Tool-calling intent classification
-  guardrails.py         Input/output safety checks
-  config.py             Environment & path config
-  dashboard.py          Knowledge-risk scoring logic
-  index.html            Chat UI
+  __init__.py
+  config.py              Environment & path config
+  main.py                FastAPI app — /api/chat, /webhook/github, page & static routes
+  graph.py                LangGraph state machine (chat flow)
+  intent_classifier.py    Tool-calling intent classification
+  guardrails.py            Input/output safety checks
+  dashboard.py              Knowledge-risk scoring logic
+  static/
+    index.html               Chat UI
+    dashboard.html            Knowledge-risk dashboard (manager-only)
+    pr_guardian.html          PR Guardian activity log (manager-only)
+    style.css
+    sidebar.js
+    assets/                    Icons, logo
 ingestion/
-  ingest_github.py      Pulls commits/PRs/comments from GitHub
-  chunk_data.py          Chunks PR/comment data per-PR, bot-filtered
-  embed_and_store.py     Embeds chunks, stores in ChromaDB
+  ingest_github.py         Pulls commits/PRs/comments from GitHub
+  chunk_data.py             Chunks PR/comment data per-PR, bot-filtered
+  embed_and_store.py        Embeds chunks, stores in ChromaDB
 pr_guardian/
-  detect.py              Fetches PR + changed files
-  retrieve.py            Per-file historical retrieval
-  judge.py               LLM relevance judgment
-  act.py                  Confirmation gate + posting + loop prevention
+  detect.py                 Fetches PR + changed files
+  retrieve.py                Per-file historical retrieval
+  judge.py                    LLM relevance judgment
+  act.py                       Confirmation gate + posting + loop prevention
 data/
   raw/, processed/, chroma_db/, users.json
 eval/
-  golden_dataset.json     20-item eval set
-  rubric.md                Scoring rubric (1/3/5 anchors per dimension)
-  run_eval.py               Original 10-scenario test suite
-  run_llm_judge.py          Automated LLM-as-judge scoring pipeline
-  guardrail_demo.py          Guardrail pass/block test cases
+  golden_dataset.json        20-item eval set
+  rubric.md                    Scoring rubric (1/3/5 anchors per dimension)
+  run_eval.py                   Original 10-scenario test suite
+  run_llm_judge.py              Automated LLM-as-judge scoring pipeline
+  guardrail_demo.py              Guardrail pass/block test cases
+  testset_raw.json                50 synthetic queries (Session 10 generation)
+  tune_threshold.py                Relevance-threshold validation
+  tune_dashboard_weights.py         Dashboard risk-weight validation
+  check_fos004.py                    Manual judge-verification script
 tests/
-  claude_test.py, cleanup_test_chunk.py, test_injection.py, test_injection_direct.py
-benchmark.py               Intent-routing regression check
+  test_injection.py               Prompt-injection grounding test
+  test_injection_direct.py        Direct-context injection test
+  cleanup_test_chunk.py             ChromaDB test-data cleanup
+benchmark.py                Intent-routing regression check
 ```
 
 ---
