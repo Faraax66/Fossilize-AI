@@ -25,8 +25,9 @@ _USERS = {
 }
 
 app = FastAPI(title="Fossilize AI")
-
-app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/assets", StaticFiles(directory=Path(__file__).parent / "static" / "assets"), name="assets")
+#app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
 
 def process_pr_guardian(pr_number: int):
     pr_context = get_pr_context(pr_number)
@@ -58,9 +59,45 @@ class GitHubWebhookPayload(BaseModel):
     zen: Optional[str] = None  # present only on ping events
 
 
+
+from app.dashboard import get_at_risk_files, get_summary_stats, get_top_contributors, get_risk_distribution
+
+@app.get("/api/dashboard-data")
+def dashboard_data():
+    return {
+        "summary": get_summary_stats(),
+        "at_risk_files": get_at_risk_files(top_n=10),
+        "top_contributors": get_top_contributors(top_n=10),
+        "risk_distribution": get_risk_distribution(),
+    }
+
+@app.get("/api/pr-guardian-log")
+def pr_guardian_log():
+    log_path = Path(__file__).parent.parent / "pr_guardian" / "activity_log.json"
+    if not log_path.exists():
+        return []
+    entries = json.loads(log_path.read_text())
+    return list(reversed(entries))
+
+@app.get("/dashboard")
+def dashboard_page():
+    return FileResponse( STATIC_DIR / "dashboard.html")
+
+@app.get("/pr-guardian")
+def pr_guardian_page():
+    return FileResponse( STATIC_DIR / "pr_guardian.html")
+
 @app.get("/")
 def index():
-    return FileResponse(Path(__file__).parent / "index.html")
+    return FileResponse( STATIC_DIR / "index.html")
+
+@app.get("/style.css")
+def style_css():
+    return FileResponse(Path(__file__).parent / "static" / "style.css", media_type="text/css")
+
+@app.get("/sidebar.js")
+def sidebar_js():
+    return FileResponse(Path(__file__).parent / "static" / "sidebar.js", media_type="application/javascript")
 
 # --- Health check ---
 @app.get("/health")

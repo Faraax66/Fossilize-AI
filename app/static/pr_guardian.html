@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fossilize AI — PR Guardian</title>
+<link rel="icon" type="image/png" href="assets/icons/logo.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Overlock:wght@400;700&family=Urbanist:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<style>
+  #content { flex: 1; overflow-y: auto; padding: 28px 8%; display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 900px) { #content { padding: 20px 5%; } }
+
+  .page-heading { font-size: 20px; font-weight: 600; margin: 0 0 4px 0; }
+  .page-subheading { font-size: 13.5px; color: var(--text-muted); margin: 0 0 18px 0; }
+
+  .restricted-notice {
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; background: var(--panel);
+    font-size: 14px; color: var(--text-muted); text-align: center;
+  }
+
+  .activity-card {
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .activity-top {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .activity-pr {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .action-badge {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 3px 9px; border-radius: 20px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .action-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .action-badge.auto_posted { color: #7FA37A; background: rgba(127,163,122,0.12); }
+  .action-badge.auto_posted .dot { background: #7FA37A; }
+  .action-badge.queued_for_review { color: var(--amber-light); background: rgba(203,162,89,0.12); }
+  .action-badge.queued_for_review .dot { background: var(--amber); }
+  .action-badge.stay_silent { color: var(--text-muted); background: rgba(119,120,125,0.12); }
+  .action-badge.stay_silent .dot { background: var(--text-muted); }
+  .action-badge.skip { color: var(--text-faint); background: rgba(75,76,85,0.12); }
+  .action-badge.skip .dot { background: var(--text-faint); }
+  .action-badge.post_failed { color: #D08A78; background: rgba(181,87,63,0.12); }
+  .action-badge.post_failed .dot { background: #B5573F; }
+
+  .activity-timestamp { font-size: 11.5px; color: var(--text-faint); }
+
+  .activity-detail-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); margin-top: 4px;
+  }
+  .activity-text {
+    font-family: 'Overlock', serif;
+    font-size: 14px; line-height: 1.6; color: var(--text);
+  }
+  .activity-link { font-size: 12.5px; color: var(--amber-light); text-decoration: none; }
+  .activity-link:hover { text-decoration: underline; }
+
+  .empty-state { color: var(--text-muted); font-size: 13.5px; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- SIDEBAR (identical structure to index.html) -->
+  <aside id="sidebar">
+    <div id="sidebar-resize-handle"></div>
+    <div class="brand">
+      <div class="brand-left">
+        <img class="brand-mark" src="assets/icons/logo.png" alt="Fossilize AI" />
+        <span class="brand-name">FOSSILIZE AI</span>
+      </div>
+      <div class="brand-icons">
+        <button class="icon-btn icon-search" title="Search">
+          <img src="assets/icons/search.png" alt="Search" />
+        </button>
+        <button class="icon-btn" id="collapse-btn" title="Collapse sidebar">
+          <img src="assets/icons/left.png" alt="Collapse" />
+        </button>
+      </div>
+    </div>
+
+    <nav class="main-nav">
+      <div class="nav-item" id="new-chat-btn" data-page="chat" onclick="window.location.href='/'">
+        <img src="assets/icons/new.png" alt="" />
+        <span class="nav-label">New chat</span>
+      </div>
+      <div class="nav-item" data-page="chat" onclick="window.location.href='/'">
+        <img src="assets/icons/chats.png" alt="" />
+        <span class="nav-label">Chats</span>
+      </div>
+      <div class="nav-item">
+        <img src="assets/icons/projects.png" alt="" />
+        <span class="nav-label">Projects</span>
+      </div>
+      <div class="nav-item disabled" id="nav-dashboard" data-page="dashboard" title="Manager access only" onclick="window.location.href='/dashboard'">
+        <img src="assets/icons/dashboard.png" alt="" />
+        <span class="nav-label">Dashboard</span>
+      </div>
+      <div class="nav-item disabled" id="nav-pr-guardian" data-page="pr-guardian" title="Manager access only" onclick="window.location.href='/pr-guardian'">
+        <img src="assets/icons/guard.png" alt="" />
+        <span class="nav-label">PR Guardian</span>
+      </div>
+    </nav>
+
+    <div class="recents-label">Recents</div>
+    <div class="recents-list" id="recents-list"></div>
+
+    <div class="profile-strip" id="profile-strip">
+      <div class="profile-left">
+        <div class="avatar" id="avatar-letter">A</div>
+        <div>
+          <div class="profile-name" id="profile-name">Loading…</div>
+          <div class="profile-role" id="profile-role">&nbsp;</div>
+        </div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><polyline points="6 9 12 15 18 9"/></svg>
+      <div class="persona-menu" id="persona-menu"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="main">
+    <div id="topbar">
+      <div class="chat-title-wrap">
+        <span class="chat-title">PR Guardian</span>
+      </div>
+    </div>
+
+    <div id="content">
+      <div>
+        <div class="page-heading">PR Guardian Activity</div>
+        <div class="page-subheading">Autonomous review actions taken on new pull requests.</div>
+      </div>
+      <div id="guardian-body">
+        <div class="empty-state">Loading…</div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script src="sidebar.js"></script>
+<script>
+  const guardianBody = document.getElementById("guardian-body");
+
+  function actionLabel(action) {
+    const map = {
+      auto_posted: "auto-posted",
+      queued_for_review: "queued for review",
+      stay_silent: "stayed silent",
+      skip: "skipped (duplicate)",
+      post_failed: "post failed"
+    };
+    return map[action] || action.replace(/_/g, " ");
+  }
+
+  function renderEntries(entries) {
+    if (!entries.length) {
+      guardianBody.innerHTML = `<div class="empty-state">No PR Guardian activity yet.</div>`;
+      return;
+    }
+    guardianBody.innerHTML = entries.map(e => {
+      const ts = new Date(e.timestamp).toLocaleString();
+      const badgeClass = e.action || "skip";
+      let extra = "";
+      if (e.matched_past_mistake) {
+        extra += `<div class="activity-detail-label">Matched past mistake</div><div class="activity-text">${escapeHtml(e.matched_past_mistake)}</div>`;
+      }
+      if (e.comment_text) {
+        extra += `<div class="activity-detail-label">Comment</div><div class="activity-text">${escapeHtml(e.comment_text)}</div>`;
+      }
+      if (e.comment_url) {
+        extra += `<a class="activity-link" href="${e.comment_url}" target="_blank" rel="noopener">View on GitHub &rarr;</a>`;
+      }
+      return `
+        <div class="activity-card">
+          <div class="activity-top">
+            <span class="activity-pr">PR #${e.pr_number}</span>
+            <span class="action-badge ${badgeClass}"><span class="dot"></span>${actionLabel(e.action)}</span>
+          </div>
+          <div class="activity-timestamp">${ts}</div>
+          ${e.details ? `<div class="activity-text" style="color:var(--text-muted);font-family:'Manrope',sans-serif;font-size:13px;">${escapeHtml(e.details)}</div>` : ""}
+          ${extra}
+        </div>`;
+    }).join("");
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function loadGuardianLog() {
+    try {
+      const res = await fetch("/api/pr-guardian-log");
+      const entries = await res.json();
+      renderEntries(entries);
+    } catch (err) {
+      guardianBody.innerHTML = `<div class="empty-state">Couldn't load activity log.</div>`;
+      console.error(err);
+    }
+  }
+
+  function checkAccess(user) {
+    if (user && user.role === "manager") {
+      loadGuardianLog();
+    } else {
+      guardianBody.innerHTML = `<div class="restricted-notice">PR Guardian is only available to manager accounts. Switch persona from the sidebar to view this page.</div>`;
+    }
+  }
+
+  document.addEventListener("persona-loaded", (e) => checkAccess(e.detail));
+  document.addEventListener("persona-changed", (e) => checkAccess(e.detail));
+</script>
+
+</body>
+</html>

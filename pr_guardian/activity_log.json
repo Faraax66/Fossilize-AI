@@ -1,0 +1,30 @@
+[
+  {
+    "timestamp": "2026-07-27T10:29:32.502871+00:00",
+    "pr_number": 2,
+    "action": "skip",
+    "details": "already commented on this PR"
+  },
+  {
+    "timestamp": "2026-07-27T10:31:37.084499+00:00",
+    "pr_number": 2,
+    "action": "skip",
+    "details": "already commented on this PR"
+  },
+  {
+    "timestamp": "2026-07-27T10:40:36.385978+00:00",
+    "pr_number": 2,
+    "action": "skip",
+    "details": "already commented on this PR"
+  },
+  {
+    "timestamp": "2026-07-27T10:49:19.879572+00:00",
+    "pr_number": 2,
+    "action": "auto_posted",
+    "details": "comment id 5090389728",
+    "matched_past_mistake": "PRs #5161 and #5215 are directly and concretely relevant. The current PR proposes removing a default value for `bracket_depth` on the grounds that it's \"always set before use in practice.\" But PR #5161 fixed a crash (`AttributeError: 'Leaf' object has no attribute 'bracket_depth'`) caused by exactly that assumption being wrong, and PR #5215 followed up to explicitly initialize `Leaf.bracket_depth` because newly created leaves could be read without it being set. These two PRs together demonstrate a clear historical pattern: the assumption that `bracket_depth` is always set before use has already been proven incorrect twice, leading to real crashes. This is a concrete, specific risk directly caused by the proposed change.",
+    "comment_text": "\u26a0\ufe0f **Heads-up: this assumption has caused crashes before.** PRs [#5161](https://github.com/psf/black/pull/5161) and [#5215](https://github.com/psf/black/pull/5215) both fixed `AttributeError: 'Leaf' object has no attribute 'bracket_depth'` crashes that arose from `bracket_depth` not being initialized before use \u2014 specifically in edge cases like `# fmt: skip` after an opening bracket with a standalone comment, and on newly created `Leaf` nodes. The claim that `bracket_depth` is \"always set before use in practice\" has already proven incorrect at least twice. Removing the early default value risks reintroducing these crashes for uncommon but valid inputs.",
+    "confidence": "high",
+    "comment_url": "https://github.com/Faraax66/black/pull/2#issuecomment-5090389728"
+  }
+]

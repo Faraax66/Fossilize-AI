@@ -3,7 +3,11 @@
 import os
 import requests
 from dotenv import load_dotenv
+import json
+from pathlib import Path
+from datetime import datetime, timezone
 
+LOG_FILE = Path(__file__).parent / "activity_log.json"
 load_dotenv()
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -39,10 +43,33 @@ def post_pr_comment(pr_number, comment_text, repo=FORK_REPO):
     return response.json()
 
 
-def log_action(pr_number, action, details=""):
-    """Simple logging — extend later to a file/db if needed."""
+def log_action(pr_number, action, details="", verdict=None, comment_url=None):
+    """Logs to terminal (as before) AND persists a rich entry to activity_log.json."""
     print(f"[LOG] PR #{pr_number} — action: {action} — {details}")
 
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "pr_number": pr_number,
+        "action": action,
+        "details": details,
+    }
+    if verdict:
+        entry["matched_past_mistake"] = verdict.get("reasoning")
+        entry["comment_text"] = verdict.get("comment_draft")
+        entry["confidence"] = verdict.get("confidence")
+    if comment_url:
+        entry["comment_url"] = comment_url
+
+    try:
+        if LOG_FILE.exists():
+            existing = json.loads(LOG_FILE.read_text())
+        else:
+            existing = []
+    except (json.JSONDecodeError, OSError):
+        existing = []
+
+    existing.append(entry)
+    LOG_FILE.write_text(json.dumps(existing, indent=2))
 
 def confirmation_gate(pr_number, verdict, repo=FORK_REPO):
     """
@@ -57,20 +84,21 @@ def confirmation_gate(pr_number, verdict, repo=FORK_REPO):
         return {"action": "skipped_duplicate"}
 
     if not verdict["is_relevant"]:
-        log_action(pr_number, "stay_silent", verdict["reasoning"])
+        log_action(pr_number, "stay_silent", verdict["reasoning"], verdict=verdict)
         return {"action": "silent"}
 
     if verdict["confidence"] == "high":
         try:
             result = post_pr_comment(pr_number, verdict["comment_draft"], repo)
-            log_action(pr_number, "auto_posted", f"comment id {result.get('id')}")
+            log_action(pr_number, "auto_posted", f"comment id {result.get('id')}",
+                       verdict=verdict, comment_url=result.get("html_url"))
             return {"action": "posted", "comment_url": result.get("html_url")}
         except requests.exceptions.RequestException as e:
-            log_action(pr_number, "post_failed", str(e))
+            log_action(pr_number, "post_failed", str(e), verdict=verdict)
             return {"action": "failed", "reason": str(e)}
 
     else:
-        log_action(pr_number, "queued_for_review", f"confidence={verdict['confidence']}")
+        log_action(pr_number, "queued_for_review", f"confidence={verdict['confidence']}", verdict=verdict)
         return {
             "action": "queued_for_review",
             "pr_number": pr_number,

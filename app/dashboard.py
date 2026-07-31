@@ -1,7 +1,7 @@
 # dashboard.py
 
 import json
-from collections import defaultdict
+from collections import defaultdict 
 from datetime import datetime
 
 def is_bot(author):
@@ -102,6 +102,62 @@ def compute_risk_scores(file_stats, min_pr_count=2):
     results.sort(key=lambda x: x["risk_score"], reverse=True)
     return results
 
+def get_summary_stats():
+    prs = load_json("data/raw/pull_requests.json")
+    commits = load_json("data/raw/commits.json")
+
+    human_pr_authors = {pr.get("author") for pr in prs if not is_bot(pr.get("author"))}
+    human_commit_authors = {c.get("author") for c in commits if not is_bot(c.get("author"))}
+    unique_contributors = human_pr_authors | human_commit_authors
+
+    all_dates = [pr.get("created_at") for pr in prs if pr.get("created_at")]
+    all_dates += [c.get("date") for c in commits if c.get("date")]
+
+    return {
+        "repo_name": "psf/black",  # hardcoded — move to config.py if a REPO_NAME constant exists there
+        "total_prs_indexed": len(prs),
+        "total_commits_indexed": len(commits),
+        "unique_contributors": len(unique_contributors),
+        "oldest_date": min(all_dates) if all_dates else None,
+        "newest_date": max(all_dates) if all_dates else None,
+    }
+
+
+def get_top_contributors(top_n=10):
+    prs = load_json("data/raw/pull_requests.json")
+    commits = load_json("data/raw/commits.json")
+
+    pr_counts = defaultdict(int)
+    commit_counts = defaultdict(int)
+
+    for pr in prs:
+        author = pr.get("author")
+        if not is_bot(author):
+            pr_counts[author] += 1
+
+    for c in commits:
+        author = c.get("author")
+        if not is_bot(author):
+            commit_counts[author] += 1
+
+    all_authors = set(pr_counts) | set(commit_counts)
+    results = [{
+        "author": author,
+        "pr_count": pr_counts.get(author, 0),
+        "commit_count": commit_counts.get(author, 0),
+        "total_activity": pr_counts.get(author, 0) + commit_counts.get(author, 0),
+    } for author in all_authors]
+
+    results.sort(key=lambda x: x["total_activity"], reverse=True)
+    return results[:top_n]
+
+
+def get_risk_distribution():
+    """Same computation as get_at_risk_files, but unsliced — every file that qualified."""
+    prs = load_json("data/raw/pull_requests.json")
+    comments = load_json("data/raw/pr_comments.json")
+    file_stats = build_file_stats(prs, comments)
+    return compute_risk_scores(file_stats)  # no top_n slice
 
 def get_at_risk_files(top_n=10):
     prs = load_json("data/raw/pull_requests.json")
