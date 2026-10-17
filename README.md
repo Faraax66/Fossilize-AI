@@ -1,4 +1,5 @@
 # Fossilize AI
+[Click to Watch demo]
 [![Watch the demo](https://img.youtube.com/vi/gsfeWtkUPPU/maxresdefault.jpg)](https://www.youtube.com/watch?v=gsfeWtkUPPU)
 **Before your team's knowledge goes extinct.**
 
