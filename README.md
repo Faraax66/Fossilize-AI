@@ -1,7 +1,8 @@
 # Fossilize AI
-[Click to Watch demo]
-[![Watch the demo](https://img.youtube.com/vi/gsfeWtkUPPU/maxresdefault.jpg)](https://www.youtube.com/watch?v=gsfeWtkUPPU)
 **Before your team's knowledge goes extinct.**
+
+[Click to Watch demo 🔽]
+[![Watch the demo](https://img.youtube.com/vi/gsfeWtkUPPU/maxresdefault.jpg)](https://www.youtube.com/watch?v=gsfeWtkUPPU)
 
 Fossilize AI is an institutional-knowledge agent for software teams. It answers questions about *why* code was built or changed, using real GitHub commit and PR history as its memory — and it proactively watches new pull requests to flag when a change risks repeating a past, documented mistake.
 
